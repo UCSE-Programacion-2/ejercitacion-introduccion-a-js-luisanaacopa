@@ -1,0 +1,16 @@
+/node_modules
+
+# Copiado / alineado con Configuration-Files/backend-nodejs
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tmp
+*.temp
+.env
+.env.local
+.env.*.local
+dist/
+build/

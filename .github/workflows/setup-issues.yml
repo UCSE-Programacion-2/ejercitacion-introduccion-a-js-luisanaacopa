@@ -1,0 +1,95 @@
+name: Setup assignment issues
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+  repository_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: setup-issues-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  ensure-assignment-issues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Crear issues faltantes de la actividad
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const labelName = "classroom-assignment";
+
+            const specs = [
+              {
+                title: "[Entrega] Completar constantes iniciales y funciones de homework",
+                body: [
+                  "## Objetivo",
+                  "Completar el archivo `homework.js` respetando nombres, firmas y exportaciones.",
+                  "",
+                  "## Que debe cumplirse",
+                  "- [ ] Se reemplazan los `null` indicados al inicio.",
+                  "- [ ] Se completa el cuerpo de cada funcion pedida.",
+                  "- [ ] No se eliminan ni renombran exports de `module.exports`."
+                ].join("\n")
+              },
+              {
+                title: "[Autograding] La suite de Jest corre en GitHub Actions",
+                body: [
+                  "## Objetivo",
+                  "Validar automaticamente que el repo instala dependencias y ejecuta tests.",
+                  "",
+                  "## Que debe cumplirse",
+                  "- [ ] `npm ci` finaliza sin errores.",
+                  "- [ ] `npm test` corre desde GitHub Actions.",
+                  "",
+                  "## Nota",
+                  "Este criterio se vincula directamente con el workflow `classroom.yml`."
+                ].join("\n")
+              }
+            ];
+
+            const color = "1d76db";
+            const description = "Issue generado automaticamente para la actividad de Classroom";
+
+            const existingLabels = await github.paginate(
+              github.rest.issues.listLabelsForRepo,
+              { owner, repo, per_page: 100 }
+            );
+            if (!existingLabels.some((l) => l.name === labelName)) {
+              await github.rest.issues.createLabel({
+                owner, repo, name: labelName, color, description
+              });
+            }
+
+            const existingIssues = await github.paginate(
+              github.rest.issues.listForRepo,
+              { owner, repo, state: "all", per_page: 100 }
+            );
+            const titles = new Set(
+              existingIssues
+                .filter((i) => !i.pull_request)
+                .map((i) => i.title.trim())
+            );
+
+            for (const spec of specs) {
+              if (titles.has(spec.title)) {
+                core.info(`Ya existe: ${spec.title}`);
+                continue;
+              }
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title: spec.title,
+                body: spec.body,
+                labels: [labelName]
+              });
+              core.info(`Creado: ${spec.title}`);
+            }
